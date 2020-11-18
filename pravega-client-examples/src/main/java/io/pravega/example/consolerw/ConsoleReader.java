@@ -401,9 +401,9 @@ class BackgroundReader implements Closeable, Runnable {
                     this.csvWriter.flush();
                     this.csvWriter.close();
                     String command =
-                            "curl -s -H \"Content-Type: application/x-ndjson\" -XPOST \"http://10.1.38.108:9200/stats_cpu/_bulk\" --data-binary \"@stats_cpu_use.csv\"";
+                            "curl -s -H \"Content-Type: application/x-ndjson\" -XPOST \"http://10.1.38.108:9200/stats_cpu/_bulk\" --data-binary " + "@" + f.getAbsolutePath();
                     System.out.println(command);
-                    Process process = Runtime.getRuntime().exec(command, null,  new File(System.getProperty("user.dir")));
+                    Process process = Runtime.getRuntime().exec(command);
                     prevEvent = event.getEvent();
                 }
 
