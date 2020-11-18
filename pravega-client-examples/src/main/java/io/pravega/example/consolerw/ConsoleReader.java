@@ -403,7 +403,7 @@ class BackgroundReader implements Closeable, Runnable {
                     String command =
                             "curl -s -H \"Content-Type: application/x-ndjson\" -XPOST \"http://10.1.38.108:9200/stats_cpu/_bulk\" --data-binary \"@stats_cpu_use.csv\"";
                     System.out.println(command);
-                    Process process = Runtime.getRuntime().exec(command);
+                    Process process = Runtime.getRuntime().exec(command, null,  new File(System.getProperty("user.dir")));
                     prevEvent = event.getEvent();
                 }
 
