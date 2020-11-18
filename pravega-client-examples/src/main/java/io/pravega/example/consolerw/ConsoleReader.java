@@ -17,7 +17,10 @@ import io.pravega.client.stream.StreamCut;
 import io.pravega.common.concurrent.ExecutorServiceHelpers;
 import java.io.BufferedReader;
 import java.io.Closeable;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.ArrayList;
@@ -33,6 +36,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
+
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.CommandLine;
@@ -335,7 +340,9 @@ class BackgroundReader implements Closeable, Runnable {
 
     private final AtomicBoolean end = new AtomicBoolean(false);
     private final ScheduledExecutorService executor;
-
+    private static final List<String> HEADER = Arrays.asList("{\"index\": {\"_type\": \"stats_cpu\"", "\"_index\": \"stat\"}}");
+    private FileWriter csvWriter;
+    private static final String CSV_FILE_PATH = "stats_cpu_use.csv";
     BackgroundReader(String scope, String streamName, URI controllerURI) {
         this.scope = scope;
         this.streamName = streamName;
@@ -375,6 +382,29 @@ class BackgroundReader implements Closeable, Runnable {
                     // TODO: Problem finding logback.xml in Pravega example applications (Issue #87).
                     System.out.println("[BackgroundReader] Read event: " + event.getEvent());
                     log.info("[BackgroundReader] Read event: {}.", event.getEvent());
+
+                    File f = new File(CSV_FILE_PATH);
+                    if (f.exists()) {
+                        log.info("File '%s' already exists.", f.getAbsolutePath());
+                        if (!f.delete()) {
+                            log.error("Failed to delete the file '%s'.", f.getAbsolutePath());
+                        }
+                    }
+                    if (!f.createNewFile()) {
+                        log.error("Failed to create file '%s'.", f.getAbsolutePath());
+                    }
+                    this.csvWriter = new FileWriter(f.getAbsolutePath());
+                    log.info("Created file '%s'", f.getAbsolutePath());
+                    this.csvWriter.append(String.join(",", HEADER));
+                    this.csvWriter.append("\n");
+                    this.csvWriter.append(event.getEvent());
+                    this.csvWriter.flush();
+                    this.csvWriter.close();
+                    String command =
+                            "curl -s -H \"Content-Type: application/x-ndjson\" -XPOST \"http://10.1.38.108:9200/cpu_stats/_bulk\" --data-binary \"@stats_cpu_use.csv\"";
+                    Process process = Runtime.getRuntime().exec(command);
+                    InputStream inputStream = process.getInputStream();
+                    System.out.println(inputStream.toString());
                     prevEvent = event.getEvent();
                 }
 
@@ -384,7 +414,7 @@ class BackgroundReader implements Closeable, Runnable {
                                .thenAccept(checkpoint -> lastStreamCut.set(checkpoint.asImpl().getPositions()));
                 }
             } while (!end.get());
-        } catch (ReinitializationRequiredException e) {
+        } catch (ReinitializationRequiredException | IOException e) {
             // We do not expect this Exception from the reader in this situation, so we leave.
             log.error("Non-expected reader re-initialization.");
         }
