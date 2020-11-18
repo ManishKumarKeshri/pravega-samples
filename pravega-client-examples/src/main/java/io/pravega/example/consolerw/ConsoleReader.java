@@ -368,12 +368,14 @@ class BackgroundReader implements Closeable, Runnable {
 
             // Start main loop to continuously read and display events written to the scope/stream.
             log.info("Start reading events from {}/{}.", scope, streamName);
+            String prevEvent = "xxxxxx=======";
             do {
                 event = reader.readNextEvent(READER_TIMEOUT_MS);
-                if (event.getEvent() != null) {
+                if (event.getEvent() != null && !event.equals(prevEvent)) {
                     // TODO: Problem finding logback.xml in Pravega example applications (Issue #87).
                     System.out.println("[BackgroundReader] Read event: " + event.getEvent());
                     log.info("[BackgroundReader] Read event: {}.", event.getEvent());
+                    prevEvent = event.getEvent();
                 }
 
                 // Update the StreamCut after every event read, just in case the user wants to use it.
