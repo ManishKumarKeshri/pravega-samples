@@ -20,9 +20,18 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -36,8 +45,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.CommandLine;
@@ -57,6 +64,13 @@ import io.pravega.client.stream.ReinitializationRequiredException;
 import io.pravega.client.stream.ScalingPolicy;
 import io.pravega.client.stream.StreamConfiguration;
 import io.pravega.client.stream.impl.JavaSerializer;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 /**
  * This class implements a simple console interface with the client for demonstration purposes. Specifically, this class
@@ -199,7 +213,7 @@ public class ConsoleReader implements Closeable {
             return;
         }
         ReaderGroupConfig config = ReaderGroupConfig.builder().stream(Stream.of(scope, streamName))
-                                                    .startingStreamCuts(streamCut).build();
+                .startingStreamCuts(streamCut).build();
         readBasedOnStreamCuts(config);
     }
 
@@ -214,7 +228,7 @@ public class ConsoleReader implements Closeable {
             return;
         }
         ReaderGroupConfig config = ReaderGroupConfig.builder().stream(Stream.of(scope, streamName))
-                                                    .endingStreamCuts(streamCut).build();
+                .endingStreamCuts(streamCut).build();
         readBasedOnStreamCuts(config);
     }
 
@@ -300,8 +314,8 @@ public class ConsoleReader implements Closeable {
         StreamManager streamManager = StreamManager.create(controllerURI);
         streamManager.createScope(scope);
         StreamConfiguration streamConfig = StreamConfiguration.builder()
-                                                              .scalingPolicy(ScalingPolicy.fixed(1))
-                                                              .build();
+                .scalingPolicy(ScalingPolicy.fixed(1))
+                .build();
         streamManager.createStream(scope, streamName, streamConfig);
         streamManager.close();
 
@@ -350,6 +364,43 @@ class BackgroundReader implements Closeable, Runnable {
         executor = new ScheduledThreadPoolExecutor(1);
     }
 
+    public static void disableCertificateValidation() {
+        // Create a trust manager that does not validate certificate chains
+        TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+
+            }
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+
+            }
+        }
+        };
+        // Ignore differences between given hostname and certificate hostname
+        HostnameVerifier hv = new HostnameVerifier() {
+            @Override
+            public boolean verify(String hostname, SSLSession session) {
+                return true;
+            }
+        };
+
+        // Install the all-trusting trust manager
+        try {
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, trustAllCerts, new SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            HttpsURLConnection.setDefaultHostnameVerifier(hv);
+        } catch (Exception e) {
+            // Do nothing
+        }
+    }
+
     /**
      * This method continuously performs two tasks: first, it reads events that are being written by console writer
      * or by any other process in that stream. Second, it creates a new StreamCut after every read event. The new
@@ -358,7 +409,7 @@ class BackgroundReader implements Closeable, Runnable {
      */
     public void run() {
         final ReaderGroupConfig readerGroupConfig = ReaderGroupConfig.builder().disableAutomaticCheckpoints()
-                                                                     .stream(Stream.of(scope, streamName)).build();
+                .stream(Stream.of(scope, streamName)).build();
 
         try (ReaderGroupManager readerGroupManager = ReaderGroupManager.withScope(scope, controllerURI);
              EventStreamClientFactory clientFactory = EventStreamClientFactory.withScope(scope,
@@ -401,25 +452,87 @@ class BackgroundReader implements Closeable, Runnable {
                     this.csvWriter.append("\n");
                     this.csvWriter.flush();
                     this.csvWriter.close();
-                    String command =
-                            "curl -s -H \"Content-Type: application/x-ndjson\" -XPOST \"http://10.1.38.108:9200/stats_cpu/_bulk\" --data-binary " + "@" + f.getAbsolutePath();
-                    System.out.println(command);
-                    Process process = Runtime.getRuntime().exec(command);
-                    int exitCode = process.exitValue();
-                    System.out.println(exitCode);
-                    process.destroy();
+
+                    // String eventString = event.getEvent();
+                    // //Sample Event: {"nodelnn": 3, "key": "node.cpu.sys.avg", "value": 60, "queryTime": "2020-11-18T20:33:43.358251"}
+                    // int value = Integer.parseInt(eventString.split(",")[2].split(": ")[1]);
+                    // System.out.println("VALUE:"+value);
+                    try{
+                        if(true){
+                            URL url = new URL("https://root:a@10.25.70.249:8080/platform/3/cluster/diagnostics/gather/start");
+
+                            disableCertificateValidation();
+
+                            HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                            httpCon.setDoOutput(true);
+                            httpCon.setRequestMethod("POST");
+                            httpCon.setRequestProperty("Content-Type", "application/json");
+                            OutputStreamWriter out = new OutputStreamWriter(httpCon.getOutputStream());
+                            String triggerLogGather = "{\"gather_mode\":\"full\",\"upload\":true,\"http_upload\":false,\"http_upload_host\":null,\"http_upload_path\":null,\"http_upload_proxy\":null,\"esrs\":false,\"ftp_upload\":true,\"ftp_upload_host\":\"10.1.37.138\",\"ftp_upload_path\":\"/Test\",\"ftp_upload_user\":\"ftp@test\",\"ftp_upload_pass\":\"a\",\"ftp_upload_proxy\":null}";
+                            out.write(triggerLogGather);
+                            out.flush();
+                            out.close();
+                        }
+                    }catch(Exception e){
+                        e.printStackTrace();
+                    }
+                    URL url = new URL("http://10.1.38.108:9200/stats_cpu/_bulk");
+                    HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+                    httpCon.setDoOutput(true);
+                    httpCon.setRequestMethod("POST");
+                    httpCon.setRequestProperty("Content-Type", "application/x-ndjson");
+                    OutputStreamWriter out = new OutputStreamWriter(httpCon.getOutputStream());
+                    Path path = Paths.get(f.getAbsolutePath()); // <------ your file name
+
+                    // Open a BufferedReader to your file - change CharSet if necessary
+                    BufferedReader fReader = Files.newBufferedReader(path, Charset.defaultCharset());
+
+                    String data = null;
+                    // Read each line, append "\n" to it as required by Bulk API and write it to the server
+                    while ((data = fReader.readLine()) != null) {
+                        out.write(data + "\n"); // <------ Put each line in output stream
+                        out.flush();            // <------ You may do this outside the loop once
+                    }
+
+                    out.close();
+                    System.out.println(httpCon.getResponseCode());
+
+                    // try{
+                    // String command =
+                    //         "/usr/bin/curl -s -H 'Content-Type: application/x-ndjson' -XPOST 'http://10.1.38.108:9200/stats_cpu/_bulk' --data-binary '@"+f.getAbsolutePath()+"'";
+                    // System.out.println(new String[]{"/bin/bash","-c", "\""+command+"\""}.toString());
+                    // //Runtime.getRuntime().exec(new String[]{"zsh","-c", command});
+                    // Process process = Runtime.getRuntime().exec(command);
+                    // printResults(process);
+                    // //Process process = Runtime.getRuntime().exec(new String[]{"/bin/bash","-c", "\""+command+"\""});
+                    // //process.destroy();
+                    // int exitVal = process.waitFor();
+                    // System.out.println(exitVal);
+                    // //printResults(process);
+                    // }catch(Exception e){
+                    //     e.printStackTrace();
+                    // }
+
                     prevEvent = event.getEvent();
                 }
 
                 // Update the StreamCut after every event read, just in case the user wants to use it.
                 if (!event.isCheckpoint()) {
                     readerGroup.initiateCheckpoint("myCheckpoint" + System.nanoTime(), executor)
-                               .thenAccept(checkpoint -> lastStreamCut.set(checkpoint.asImpl().getPositions()));
+                            .thenAccept(checkpoint -> lastStreamCut.set(checkpoint.asImpl().getPositions()));
                 }
             } while (!end.get());
         } catch (ReinitializationRequiredException | IOException e) {
             // We do not expect this Exception from the reader in this situation, so we leave.
             log.error("Non-expected reader re-initialization.");
+        }
+    }
+
+    public static void printResults(Process process) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        String line = "";
+        while ((line = reader.readLine()) != null) {
+            System.out.println(line);
         }
     }
 
