@@ -398,6 +398,7 @@ class BackgroundReader implements Closeable, Runnable {
                     this.csvWriter.append(String.join(",", HEADER));
                     this.csvWriter.append("\n");
                     this.csvWriter.append(event.getEvent());
+                    this.csvWriter.append("\n");
                     this.csvWriter.flush();
                     this.csvWriter.close();
                     String command =
