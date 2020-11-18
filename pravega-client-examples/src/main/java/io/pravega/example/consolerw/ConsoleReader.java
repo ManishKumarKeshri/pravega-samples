@@ -26,6 +26,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -45,6 +46,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.pravega.keycloak.org.apache.commons.codec.binary.Base64;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.CommandLine;
@@ -464,6 +467,12 @@ class BackgroundReader implements Closeable, Runnable {
                             disableCertificateValidation();
 
                             HttpURLConnection httpCon = (HttpURLConnection) url.openConnection();
+
+                            String auth = "root" + ":" + "a";
+                            byte[] encodedAuth = Base64.encodeBase64(auth.getBytes(StandardCharsets.UTF_8));
+                            String authHeaderValue = "Basic " + new String(encodedAuth);
+                            httpCon.setRequestProperty("Authorization", authHeaderValue);
+
                             httpCon.setDoOutput(true);
                             httpCon.setRequestMethod("POST");
                             httpCon.setRequestProperty("Content-Type", "application/json");
