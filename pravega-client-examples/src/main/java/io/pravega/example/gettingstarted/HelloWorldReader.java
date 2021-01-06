@@ -67,6 +67,7 @@ public class HelloWorldReader {
             readerGroupManager.createReaderGroup(readerGroup, readerGroupConfig);
         }
 
+        int numEventsRead = 0;
         try (EventStreamClientFactory clientFactory = EventStreamClientFactory.withScope(scope,
                 ClientConfig.builder().controllerURI(controllerURI).build());
              EventStreamReader<String> reader = clientFactory.createReader("reader",
@@ -79,14 +80,15 @@ public class HelloWorldReader {
                 try {
                     event = reader.readNextEvent(READER_TIMEOUT_MS);
                     if (event.getEvent() != null) {
-                        System.out.format("Read event '%s'%n", event.getEvent());
+                        numEventsRead++;
+                        //System.out.format("Read event '%s'%n", event.getEvent());
                     }
                 } catch (ReinitializationRequiredException e) {
                     //There are certain circumstances where the reader needs to be reinitialized
                     e.printStackTrace();
                 }
             } while (event.getEvent() != null);
-            System.out.format("No more events from %s/%s%n", scope, streamName);
+            System.out.format("Total number of events read = " + numEventsRead);
         }
     }
 

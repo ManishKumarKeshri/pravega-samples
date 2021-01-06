@@ -11,9 +11,14 @@
 package io.pravega.example.gettingstarted;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 
 import io.pravega.client.ClientConfig;
+import io.pravega.common.concurrent.Futures;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -29,6 +34,8 @@ import io.pravega.client.stream.ScalingPolicy;
 import io.pravega.client.stream.StreamConfiguration;
 import io.pravega.client.stream.impl.JavaSerializer;
 
+import static java.lang.Thread.sleep;
+
 /**
  * A simple example app that uses a Pravega Writer to write to a given scope and stream.
  */
@@ -37,6 +44,8 @@ public class HelloWorldWriter {
     public final String scope;
     public final String streamName;
     public final URI controllerURI;
+    public final int NUM_WRITERS = 3;
+    public final int NUM_EVENTS = 10000;
 
     public HelloWorldWriter(String scope, String streamName, URI controllerURI) {
         this.scope = scope;
@@ -44,7 +53,7 @@ public class HelloWorldWriter {
         this.controllerURI = controllerURI;
     }
 
-    public void run(String routingKey, String message) {
+    public void run(String routingKey, String message) throws ExecutionException, InterruptedException {
         StreamManager streamManager = StreamManager.create(controllerURI);
         final boolean scopeIsNew = streamManager.createScope(scope);
 
@@ -53,19 +62,48 @@ public class HelloWorldWriter {
                 .build();
         final boolean streamIsNew = streamManager.createStream(scope, streamName, streamConfig);
 
+        List<CompletableFuture<Void>> writerList = new ArrayList<>();
+        List<EventStreamWriter<String>> writers = new ArrayList<>();
+
         try (EventStreamClientFactory clientFactory = EventStreamClientFactory.withScope(scope,
-                ClientConfig.builder().controllerURI(controllerURI).build());
-             EventStreamWriter<String> writer = clientFactory.createEventWriter(streamName,
-                                                                                 new JavaSerializer<String>(),
-                                                                                 EventWriterConfig.builder().build())) {
-            
-            System.out.format("Writing message: '%s' with routing-key: '%s' to stream '%s / %s'%n",
-                    message, routingKey, scope, streamName);
-            final CompletableFuture writeFuture = writer.writeEvent(routingKey, message);
+                ClientConfig.builder().controllerURI(controllerURI).build())) {
+
+            for (int i = 0; i < NUM_WRITERS; i++) {
+                writers.add(clientFactory.createEventWriter(streamName,
+                        new JavaSerializer<String>(),
+                        EventWriterConfig.builder().build()));
+            }
+
+            System.out.format("Writing first batch of events.");
+            for (int i = 0; i < NUM_WRITERS; i++) {
+                writerList.add(write(writers.get(i), NUM_EVENTS, routingKey, message));
+            }
+            Futures.allOf(writerList).get();
+
+            writerList.clear();
+
+            sleep(70000);
+
+            System.out.format("Writing second batch of events.");
+            for (int i = 0; i < NUM_WRITERS; i++) {
+                writerList.add(write(writers.get(i), NUM_EVENTS, routingKey, message));
+            }
+            Futures.allOf(writerList).get();
         }
+
     }
 
-    public static void main(String[] args) {
+    private CompletableFuture<Void> write(EventStreamWriter<String> writer, long num_events, String routingKey, String message) {
+        return CompletableFuture.runAsync(() -> {
+            for (int i = 0; i < num_events; i++) {
+                // data.incrementAndGet();
+                writer.writeEvent(routingKey, message);
+                writer.flush();
+            }
+        });
+    }
+
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
         Options options = getOptions();
         CommandLine cmd = null;
         try {
