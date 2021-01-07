@@ -89,6 +89,7 @@ public class HelloWorldReader {
                 }
             } while (event.getEvent() != null);
             System.out.format("Total number of events read = " + numEventsRead);
+            System.out.format("%n");
         }
     }
 

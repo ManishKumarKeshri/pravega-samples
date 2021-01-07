@@ -45,7 +45,7 @@ public class HelloWorldWriter {
     public final String streamName;
     public final URI controllerURI;
     public final int NUM_WRITERS = 3;
-    public final int NUM_EVENTS = 10000;
+    public final int NUM_EVENTS = 20000;
 
     public HelloWorldWriter(String scope, String streamName, URI controllerURI) {
         this.scope = scope;
@@ -75,6 +75,7 @@ public class HelloWorldWriter {
             }
 
             System.out.format("Writing first batch of events.");
+            System.out.format("%n");
             for (int i = 0; i < NUM_WRITERS; i++) {
                 writerList.add(write(writers.get(i), NUM_EVENTS, routingKey, message));
             }
@@ -82,9 +83,10 @@ public class HelloWorldWriter {
 
             writerList.clear();
 
-            sleep(70000);
+            sleep(150000);
 
             System.out.format("Writing second batch of events.");
+            System.out.format("%n");
             for (int i = 0; i < NUM_WRITERS; i++) {
                 writerList.add(write(writers.get(i), NUM_EVENTS, routingKey, message));
             }
