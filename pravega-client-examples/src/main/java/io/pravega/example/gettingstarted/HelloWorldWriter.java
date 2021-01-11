@@ -131,7 +131,7 @@ public class HelloWorldWriter {
                 System.out.format("Total number of events read = " + eventReadCount.get());
                 System.out.format("%n");
 
-                sleep(600000);
+                sleep(300000);
             }
         }
 
