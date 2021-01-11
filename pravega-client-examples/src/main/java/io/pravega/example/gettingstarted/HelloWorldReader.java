@@ -52,17 +52,11 @@ public class HelloWorldReader {
 
     public final String scope;
     public final String streamName;
-    public final String streamName1;
-    public final String streamName2;
-    public final String streamName3;
     public final URI controllerURI;
 
-    public HelloWorldReader(String scope, String streamName, String streamName1, String streamName2, String streamName3, URI controllerURI) {
+    public HelloWorldReader(String scope, String streamName, URI controllerURI) {
         this.scope = scope;
         this.streamName = streamName;
-        this.streamName1 = streamName1;
-        this.streamName2 = streamName2;
-        this.streamName3 = streamName3;
         this.controllerURI = controllerURI;
     }
 
@@ -74,41 +68,24 @@ public class HelloWorldReader {
                 .scalingPolicy(ScalingPolicy.fixed(1))
                 .build();
         streamManager.createStream(scope, streamName, streamConfig);
-        streamManager.createStream(scope, streamName1, streamConfig);
-        streamManager.createStream(scope, streamName2, streamConfig);
-        streamManager.createStream(scope, streamName3, streamConfig);
 
-        final String readerGroup1 = UUID.randomUUID().toString().replace("-", "");
-        final String readerGroup2 = UUID.randomUUID().toString().replace("-", "");
-        final String readerGroup3 = UUID.randomUUID().toString().replace("-", "");
+        final String readerGroup = UUID.randomUUID().toString().replace("-", "");
 
-        final ReaderGroupConfig readerGroupConfig1 = ReaderGroupConfig.builder()
-                .stream(Stream.of(scope, streamName1))
+        final ReaderGroupConfig readerGroupConfig = ReaderGroupConfig.builder()
+                .stream(Stream.of(scope, streamName))
                 .build();
-        final ReaderGroupConfig readerGroupConfig2 = ReaderGroupConfig.builder()
-                .stream(Stream.of(scope, streamName2))
-                .build();
-        final ReaderGroupConfig readerGroupConfig3 = ReaderGroupConfig.builder()
-                .stream(Stream.of(scope, streamName3))
-                .build();
+
         try (ReaderGroupManager readerGroupManager = ReaderGroupManager.withScope(scope, controllerURI)) {
-            readerGroupManager.createReaderGroup(readerGroup1, readerGroupConfig1);
-            readerGroupManager.createReaderGroup(readerGroup2, readerGroupConfig2);
-            readerGroupManager.createReaderGroup(readerGroup3, readerGroupConfig3);
+            readerGroupManager.createReaderGroup(readerGroup, readerGroupConfig);
         }
 
         int numEventsRead = 0;
         try (EventStreamClientFactory clientFactory = EventStreamClientFactory.withScope(scope,
                 ClientConfig.builder().controllerURI(controllerURI).build());) {
             System.out.format("Reading all the events from %s/%s%n", scope, streamName);
-            System.out.format("Reading all the events from %s/%s%n", scope, streamName1);
-            System.out.format("Reading all the events from %s/%s%n", scope, streamName2);
-            System.out.format("Reading all the events from %s/%s%n", scope, streamName3);
             List<CompletableFuture<Void>> readersList = new ArrayList<>();
             AtomicLong eventReadCount = new AtomicLong(0);
-            readersList.add(startNewReader("reader1", clientFactory, readerGroup1, eventReadCount));
-            readersList.add(startNewReader("reader2", clientFactory, readerGroup2, eventReadCount));
-            readersList.add(startNewReader("reader3", clientFactory, readerGroup3, eventReadCount));
+            readersList.add(startNewReader("reader1", clientFactory, readerGroup, eventReadCount));
             Futures.allOf(readersList).get();
             System.out.format("Total number of events read = " + eventReadCount.get());
             System.out.format("%n");
@@ -149,13 +126,10 @@ public class HelloWorldReader {
         
         final String scope = cmd.getOptionValue("scope") == null ? Constants.DEFAULT_SCOPE : cmd.getOptionValue("scope");
         final String streamName = cmd.getOptionValue("name") == null ? Constants.DEFAULT_STREAM_NAME : cmd.getOptionValue("name");
-        final String streamName1 = cmd.getOptionValue("name1") == null ? Constants.DEFAULT_STREAM_NAME : cmd.getOptionValue("name1");
-        final String streamName2 = cmd.getOptionValue("name2") == null ? Constants.DEFAULT_STREAM_NAME : cmd.getOptionValue("name2");
-        final String streamName3 = cmd.getOptionValue("name3") == null ? Constants.DEFAULT_STREAM_NAME : cmd.getOptionValue("name3");
         final String uriString = cmd.getOptionValue("uri") == null ? Constants.DEFAULT_CONTROLLER_URI : cmd.getOptionValue("uri");
         final URI controllerURI = URI.create(uriString);
         
-        HelloWorldReader hwr = new HelloWorldReader(scope, streamName, streamName1, streamName2, streamName3, controllerURI);
+        HelloWorldReader hwr = new HelloWorldReader(scope, streamName, controllerURI);
         hwr.run();
     }
 
@@ -163,9 +137,6 @@ public class HelloWorldReader {
         final Options options = new Options();
         options.addOption("s", "scope", true, "The scope name of the stream to read from.");
         options.addOption("n", "name", true, "The name of the stream to read from.");
-        options.addOption("n1", "name1", true, "The name of the stream to read from.");
-        options.addOption("n2", "name2", true, "The name of the stream to read from.");
-        options.addOption("n3", "name3", true, "The name of the stream to read from.");
         options.addOption("u", "uri", true, "The URI to the controller in the form tcp://host:port");
         return options;
     }
