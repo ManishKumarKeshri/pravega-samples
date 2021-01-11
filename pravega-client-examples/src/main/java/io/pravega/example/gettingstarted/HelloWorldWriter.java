@@ -126,7 +126,7 @@ public class HelloWorldWriter {
                 List<CompletableFuture<Void>> readersList = new ArrayList<>();
                 AtomicLong eventReadCount = new AtomicLong(0);
                 String readerName = "reader" + RandomFactory.create().nextInt(Integer.MAX_VALUE);
-                readersList.add(startNewReader(readerName + j, clientFactory, readerGroup, eventReadCount));
+                readersList.add(startNewReader(readerName + j, clientFactory, readerGroup, eventReadCount, eventsWritten));
                 Futures.allOf(readersList).get();
                 System.out.format("Total number of events read = " + eventReadCount.get());
                 System.out.format("%n");
@@ -138,21 +138,20 @@ public class HelloWorldWriter {
     }
 
     private CompletableFuture<Void> startNewReader(final String id, final EventStreamClientFactory clientFactory, final String
-            readerGroupName, final AtomicLong readCount) {
+            readerGroupName, final AtomicLong readCount, int writeCount) {
         return CompletableFuture.runAsync(() -> {
             @Cleanup
             final EventStreamReader<String> reader = clientFactory.createReader(id,
                     readerGroupName,
                     new JavaSerializer<String>(),
                     ReaderConfig.builder().build());
-            EventRead<String> event = null;
-            do {
-                event = reader.readNextEvent(SECONDS.toMillis(100));
-                if (event.getEvent() != null) {
+            while (readCount.get() < writeCount) {
+                String eventString = reader.readNextEvent(SECONDS.toMillis(100)).getEvent();
+                if (eventString != null) {
                     //update if event read is not null.
                     readCount.incrementAndGet();
                 }
-            } while (event.getEvent() != lastEvent);
+            }
             reader.close();
         });
     }
