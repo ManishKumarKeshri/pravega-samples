@@ -116,6 +116,8 @@ public class HelloWorldWriter {
                 }
                 Futures.allOf(writerList).get();
 
+                writerList.clear();
+
                 eventsWritten += 2 * NUM_EVENTS * NUM_WRITERS;
 
                 System.out.format("Total number of events written = " + eventsWritten);
