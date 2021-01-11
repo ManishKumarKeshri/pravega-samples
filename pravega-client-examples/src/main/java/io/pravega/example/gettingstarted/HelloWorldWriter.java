@@ -150,6 +150,7 @@ public class HelloWorldWriter {
                 event = reader.readNextEvent(SECONDS.toMillis(100));
                 if (event.getEvent() != null) {
                     //update if event read is not null.
+                    System.out.println("Read event: " + event.getEvent());
                     readCount.incrementAndGet();
                 }
             } while (event.getEvent() != lastEvent);
