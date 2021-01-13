@@ -49,7 +49,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 /**
  * A simple example app that uses a Pravega Writer to write to a given scope and stream.
  */
-public class HelloWorldWriter {
+public class IssueReproducer {
 
     public final String scope;
     public final String streamName;
@@ -59,7 +59,7 @@ public class HelloWorldWriter {
     public final int NUM_TRIES = 5;
     public String lastEvent = null;
 
-    public HelloWorldWriter(String scope, String streamName, URI controllerURI) {
+    public IssueReproducer(String scope, String streamName, URI controllerURI) {
         this.scope = scope;
         this.streamName = streamName;
         this.controllerURI = controllerURI;
@@ -196,8 +196,8 @@ public class HelloWorldWriter {
         final String streamName = cmd.getOptionValue("name") == null ? Constants.DEFAULT_STREAM_NAME : cmd.getOptionValue("name");
         final String uriString = cmd.getOptionValue("uri") == null ? Constants.DEFAULT_CONTROLLER_URI : cmd.getOptionValue("uri");
         final URI controllerURI = URI.create(uriString);
-        
-        HelloWorldWriter hww = new HelloWorldWriter(scope, streamName, controllerURI);
+
+        IssueReproducer hww = new IssueReproducer(scope, streamName, controllerURI);
         
         final String routingKey = cmd.getOptionValue("routingKey") == null ? Constants.DEFAULT_ROUTING_KEY : cmd.getOptionValue("routingKey");
         final String message = cmd.getOptionValue("message") == null ? Constants.DEFAULT_MESSAGE : cmd.getOptionValue("message");
