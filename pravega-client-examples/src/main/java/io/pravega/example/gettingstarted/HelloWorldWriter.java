@@ -145,7 +145,7 @@ public class HelloWorldWriter {
                     readerGroupName,
                     new JavaSerializer<String>(),
                     ReaderConfig.builder().build());
-            while (true) {
+            while (readCount.get() < writeCount) {
                 String eventString = reader.readNextEvent(SECONDS.toMillis(100)).getEvent();
                 if (eventString != null) {
                     //update if event read is not null.
