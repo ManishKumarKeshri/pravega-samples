@@ -74,16 +74,6 @@ public class HelloWorldWriter {
                 .build();
         streamManager.createStream(scope, streamName, streamConfig);
 
-        final String readerGroup = UUID.randomUUID().toString().replace("-", "");
-
-        final ReaderGroupConfig readerGroupConfig = ReaderGroupConfig.builder()
-                .stream(Stream.of(scope, streamName))
-                .build();
-
-        try (ReaderGroupManager readerGroupManager = ReaderGroupManager.withScope(scope, controllerURI)) {
-            readerGroupManager.createReaderGroup(readerGroup, readerGroupConfig);
-        }
-
         List<CompletableFuture<Void>> writerList = new ArrayList<>();
         List<EventStreamWriter<String>> writers = new ArrayList<>();
 
@@ -125,6 +115,16 @@ public class HelloWorldWriter {
 
                 List<CompletableFuture<Void>> readersList = new ArrayList<>();
                 AtomicLong eventReadCount = new AtomicLong(0);
+                final String readerGroup = UUID.randomUUID().toString().replace("-", "");
+
+                final ReaderGroupConfig readerGroupConfig = ReaderGroupConfig.builder()
+                        .stream(Stream.of(scope, streamName))
+                        .build();
+
+                try (ReaderGroupManager readerGroupManager = ReaderGroupManager.withScope(scope, controllerURI)) {
+                    readerGroupManager.createReaderGroup(readerGroup, readerGroupConfig);
+                }
+
                 String readerName = "reader" + RandomFactory.create().nextInt(Integer.MAX_VALUE);
                 readersList.add(startNewReader(readerName + j, clientFactory, readerGroup, eventReadCount, eventsWritten));
                 Futures.allOf(readersList).get();
