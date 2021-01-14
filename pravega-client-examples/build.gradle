@@ -38,10 +38,10 @@ dependencies {
 
 // Build examples
 
-task scriptHelloWorldWriter(type: CreateStartScripts) {
+task scriptIssueReproducer(type: CreateStartScripts) {
     outputDir = file('build/scripts')
-    mainClassName = 'io.pravega.example.gettingstarted.HelloWorldWriter'
-    applicationName = 'helloWorldWriter'
+    mainClassName = 'io.pravega.example.gettingstarted.IssueReproducer'
+    applicationName = 'IssueReproducer'
     defaultJvmOpts = ["-Dlogback.configurationFile=file:conf/logback.xml"]
     classpath = files(jar.archivePath) + sourceSets.main.runtimeClasspath
 }
@@ -54,8 +54,8 @@ task scriptHelloWorldReader(type: CreateStartScripts) {
     classpath = files(jar.archivePath) + sourceSets.main.runtimeClasspath
 }
 
-task startHelloWorldWriter(type: JavaExec) {
-    main = "io.pravega.example.gettingstarted.HelloWorldWriter"
+task startIssueReproducer(type: JavaExec) {
+    main = "io.pravega.example.gettingstarted.IssueReproducer"
     classpath = sourceSets.main.runtimeClasspath
     if(System.getProperty("exec.args") != null) {
         args System.getProperty("exec.args").split()
@@ -188,7 +188,7 @@ distributions {
         baseName = archivesBaseName
         contents {
             into('bin') {
-                from project.scriptHelloWorldWriter
+                from project.scriptIssueReproducer
                 from project.scriptHelloWorldReader
                 from project.scriptConsoleWriter
                 from project.scriptConsoleReader

@@ -188,7 +188,7 @@ public class IssueReproducer {
         } catch (ParseException e) {
             System.out.format("%s.%n", e.getMessage());
             final HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp("HelloWorldWriter", options);
+            formatter.printHelp("IssueReproducer", options);
             System.exit(1);
         }
 
